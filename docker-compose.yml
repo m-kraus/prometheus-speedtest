@@ -1,0 +1,68 @@
+version: '3.1'
+
+networks:
+  net1:
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
+
+services:
+  speedtest-exporter:
+    image: krausm/speedtest-exporter:0.1.0
+    ports:
+      - 9104:9104
+    networks:
+      - net1
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+
+  prometheus:
+    image: prom/prometheus:v2.3.2
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention=20d
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-lifecycle
+    ports:
+      - 9090:9090
+    networks:
+      - net1
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+
+  grafana:
+    image: grafana/grafana:5.2.3
+    ports:
+      - 3000:3000
+    volumes:
+      - ./grafana/provisioning:/provisioning
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_PATHS_PROVISIONING=/provisioning
+    networks:
+      - net1
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
